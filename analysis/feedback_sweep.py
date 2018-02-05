@@ -18,10 +18,10 @@ recovery_time = np.linspace(0, ss_recovery_time, ss_recovery_time * 10)
 
 stimulus_factor = 10
 
-range_hill = [1]
+range_hill = [0.5, 1, 2]
 range_feed_type = [FEEDBACK_POSITIVE, FEEDBACK_NEGATIVE]
-range_carry = np.linspace(1, 15, 2)
-range_multi = np.linspace(1, 15, 2)
+range_carry = np.linspace(0.1, 10, 10)
+range_multi = np.linspace(1, 10, 10)
 range_substrate = [I_PMPI, I_PI4P, I_PIP2, I_DAG, I_PMPA, I_ERPA, I_CDPDAG,
                    I_ERPI]
 range_enz = [E_PITP, E_PI4K, E_PIP5K, E_PLC, E_DAGK, E_LAZA, E_PATP, E_CDS,

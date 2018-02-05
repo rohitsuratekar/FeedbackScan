@@ -1,4 +1,3 @@
-from analysis.feedback_sweep import do_feedback_sweep
-from constants.namespace import *
+from analysis.feedback_visualization import plot_simple
 
-do_feedback_sweep("test.txt", S_OPEN_2, 200)
+plot_simple("output/output2.log")
