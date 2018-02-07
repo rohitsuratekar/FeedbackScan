@@ -62,6 +62,46 @@ def plot_lipid_wise(points, recovery_time_point, enzyme):
         grid_count += 1
 
 
+def plot_all_points(points, feedback_type):
+    positive_points = defaultdict(list)
+    negative_points = defaultdict(list)
+
+    for a in points:
+        if a.type_of_feedback == FEEDBACK_POSITIVE:
+            for k in a.recovery_time_points:
+                positive_points[k].append(a.feedback_recovery[
+                                              a.recovery_time_points.index(k)])
+        else:
+            for k in a.recovery_time_points:
+                negative_points[k].append(a.feedback_recovery[
+                                              a.recovery_time_points.index(k)])
+
+    c = 0
+
+    if feedback_type == FEEDBACK_POSITIVE:
+        p = positive_points
+        title = "Positive Feedback"
+    else:
+        p = negative_points
+        title = "Negative Feedback"
+
+    for k in sorted(p, reverse=True):
+        plt.hist(p[k], 30, color=primary_colors[c], label=str(k * 100) \
+                                                          + "% "
+                                                            "recovery",
+                 alpha=0.8)
+        ind = points[0].recovery_time_points.index(k)
+        plt.axvline(points[0].normal_recovery[ind], linestyle="--", color="k")
+        c += 1
+
+    plt.title(title + "\n(shown only points between 0-100)")
+    plt.xlabel("Recovery Time")
+    plt.ylabel("Frequency")
+    plt.xlim(0, 100)
+    plt.legend(loc=0)
+    plt.show()
+
+
 def plot_enzyme_wise(points, recovery_time_point, enzyme):
     fed_recovery_positive = defaultdict(list)
     fed_recovery_negative = defaultdict(list)
@@ -131,5 +171,6 @@ def plot_simple(filename: str):
 
     fig = plt.figure()
     fig.subplots_adjust(hspace=.5)
-    plot_lipid_wise(all_data, 0.9, E_PI4K)
+    # plot_lipid_wise(all_data, 0.9, E_CDS)
+    plot_all_points(all_data, FEEDBACK_POSITIVE)
     plt.show()
