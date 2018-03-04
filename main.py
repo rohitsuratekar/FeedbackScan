@@ -1,3 +1,3 @@
-from analysis.feedback_visualization import plot_simple
+from analysis.feedback_scaling import do_scaling
 
-plot_simple("output/output.log")
+do_scaling("test.txt")

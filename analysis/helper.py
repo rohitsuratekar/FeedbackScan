@@ -53,7 +53,7 @@ def get_concentration_profile(system: str, initial_condition, parameters: dict,
 
     time = np.linspace(0, ode_time, slices)
     output = odeint(get_equations(system), initial_condition, time,
-                    args=(parameters, 0))
+                    args=(parameters, None))
     return output
 
 
