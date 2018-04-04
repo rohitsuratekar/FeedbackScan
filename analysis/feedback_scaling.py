@@ -182,31 +182,98 @@ def general_core():
     plt.xlabel("Without Feedback/With Feedback (PIP2 recovery)")
     plt.ylabel("Frequency")
     plt.legend(loc=0)
+    plt.savefig("general.png", format='png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
 def check_lipid_wise():
     all_data = get_data()
-    lipid_wise = defaultdict(list)
+    lipid_wise_pos = defaultdict(list)
+    lipid_wise_neg = defaultdict(list)
     for p in all_data:
-        lipid_wise[p.feedback_substrate_name].append(p.diff)
+        if p.type_of_feedback == FEEDBACK_POSITIVE:
+            lipid_wise_pos[p.feedback_substrate_name].append(p.diff)
+        else:
+            lipid_wise_neg[p.feedback_substrate_name].append(p.diff)
 
     gs = gridspec.GridSpec(2, 4)
     grid_count = 0
-    for m in lipid_wise:
+    for m in lipid_wise_pos:
         ax = plt.subplot(gs[grid_count])
-        ax.hist(lipid_wise[m], color=second_colors[
+        ax.hist(lipid_wise_pos[m], alpha=0.5, color=second_colors[
             grid_count])
-        ax.hist(lipid_wise[m], color=primary_colors[grid_count])
+        ax.hist(lipid_wise_neg[m], alpha=0.5, color=primary_colors[
+            grid_count])
         ax.axvline(1, linestyle="--", color="k")
         # ax.set_xticks([])
         ax.set_yticks([])
         ax.set_title(m)
         grid_count += 1
 
+    plt.savefig("lipid_wise.png", format='png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+
+def check_enzyme_wise():
+    all_data = get_data()
+    enzyme_wise_pos = defaultdict(list)
+    enzyme_wise_neg = defaultdict(list)
+    for p in all_data:
+        if p.type_of_feedback == FEEDBACK_POSITIVE:
+            enzyme_wise_pos[p.feedback_enzyme].append(p.diff)
+        else:
+            enzyme_wise_neg[p.feedback_enzyme].append(p.diff)
+
+    gs = gridspec.GridSpec(3, 4)
+    grid_count = 0
+    for m in enzyme_wise_pos:
+        ax = plt.subplot(gs[grid_count])
+        ax.hist(enzyme_wise_pos[m], alpha=0.5, color=second_colors[
+            grid_count])
+        ax.hist(enzyme_wise_neg[m], alpha=0.5, color=primary_colors[
+            grid_count])
+        ax.axvline(1, linestyle="--", color="k")
+        # ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(m)
+        grid_count += 1
+
+    plt.savefig("enzyme_wise.png", format='png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+
+def single_enzyme(enzyme_name):
+    all_data = get_data()
+    lipid_wise_pos = defaultdict(list)
+    lipid_wise_neg = defaultdict(list)
+    for p in all_data:
+        if p.feedback_enzyme == enzyme_name:
+            if p.type_of_feedback == FEEDBACK_POSITIVE:
+                lipid_wise_pos[p.feedback_substrate_name].append(p.diff)
+            else:
+                lipid_wise_neg[p.feedback_substrate_name].append(p.diff)
+
+    gs = gridspec.GridSpec(2, 4)
+    grid_count = 0
+    for m in lipid_wise_pos:
+        ax = plt.subplot(gs[grid_count])
+        ax.hist(lipid_wise_pos[m], alpha=0.5, color=second_colors[
+            grid_count])
+        ax.hist(lipid_wise_neg[m], alpha=0.5, color=primary_colors[
+            grid_count])
+        ax.axvline(1, linestyle="--", color="k")
+        # ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(m)
+        grid_count += 1
+
+    plt.savefig("%s.png" % enzyme_name, format='png', dpi=300,
+                bbox_inches='tight')
     plt.show()
 
 
 def visualize():
     # general_core()
-    check_lipid_wise()
+    # check_lipid_wise()
+    # check_enzyme_wise()
+    single_enzyme(E_PI4K)
