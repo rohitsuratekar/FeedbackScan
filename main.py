@@ -1,3 +1,12 @@
-from analysis.feedback_scaling import do_scaling
+from analysis.feedback_scaling import do_scaling, visualize
 
-do_scaling("test.txt")
+
+def s():
+    do_scaling("test.txt")
+
+
+def v():
+    visualize()
+
+
+v()
