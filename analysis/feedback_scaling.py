@@ -1,5 +1,7 @@
 """
 All feedback related scaling functions can go in this file
+Related visualization will also go in the same file
+
 """
 
 from collections import defaultdict
@@ -35,8 +37,8 @@ recovery_time = np.linspace(0, ss_recovery_time, ss_recovery_time * 10)
 # feedback parameters
 range_hill = [0.5, 1, 2]
 range_feed_type = [FEEDBACK_POSITIVE, FEEDBACK_NEGATIVE]
-range_carry = np.linspace(0.1, 10, 10)
-range_multi = np.linspace(1, 10, 10)
+range_carry = np.linspace(0.1, 10, 15)
+range_multi = np.linspace(1, 10, 15)
 range_substrate = [I_PMPI, I_PI4P, I_PIP2, I_DAG, I_PMPA, I_ERPA, I_CDPDAG,
                    I_ERPI]
 range_enz = [E_PITP, E_PI4K, E_PIP5K, E_PLC, E_DAGK, E_LAZA, E_PATP, E_CDS,
@@ -44,11 +46,24 @@ range_enz = [E_PITP, E_PI4K, E_PIP5K, E_PLC, E_DAGK, E_LAZA, E_PATP, E_CDS,
 
 
 def get_ss(ini_cond, enzymes, feed_para=None):
+    """
+    :param ini_cond: Initial condition array
+    :param enzymes: Dictionary of Enzymes
+    :param feed_para: Feedback parameters if any
+    :return: array of numbers after solving ODE system
+    """
     return odeint(get_equations(system), ini_cond,
                   initial_time, args=(enzymes, feed_para))[-1]
 
 
 def give_stimulus(ini_cond):
+    """
+    Note: This is approximate method and do not consider changes in any
+    other lipid except PIP2 and DAG. Use this method only in initial
+    analysis as this will cut down HUGE computational power
+    :param ini_cond: Initial conditions
+    :return: Lipid concentrations after stimulation
+    """
     new_cond = [x for x in ini_cond]
     amount = ini_cond[I_PIP2] * depletion_percentage / 100
     new_cond[I_DAG] = new_cond[I_DAG] + new_cond[I_PIP2] - amount
@@ -57,15 +72,31 @@ def give_stimulus(ini_cond):
 
 
 def get_parameter(data: str):
+    """
+    :param data: Data in standard dictionary format
+    :return: Dictionary of Enzyme Class
+    """
     return convert_to_enzyme(extract_enz_from_log(data))
 
 
 def get_recovery_time(ini_cond, enzymes, feed_para=None):
+    """
+    :param ini_cond: Initial Conditions
+    :param enzymes: Dictionary of enzymes
+    :param feed_para: Feedback parameters if any
+    :return: array of numbers after solving ODE system
+    """
     return odeint(get_equations(system), ini_cond, recovery_time,
                   args=(enzymes, feed_para))
 
 
-def get_desired_recovery_time(con_array, ss_pip2):
+def get_desired_recovery_time(con_array, ss_pip2) -> float:
+    """
+    Returns PIP2 recovery time
+    :param con_array: Recovery array
+    :param ss_pip2: Steady state PIP2 concentration
+    :return: PIP2 recovery time
+    """
     ar = np.asarray(con_array[:, I_PIP2])
     req_conc = ss_pip2 * desired_recovery_percentage / 100
     try:
@@ -74,7 +105,14 @@ def get_desired_recovery_time(con_array, ss_pip2):
         return recovery_time[-1]  # too much delay or bistable system
 
 
-def get_pi4p_vars(con_array, ss_pi4p):
+def get_pi4p_vars(con_array, ss_pi4p) -> tuple:
+    """
+    Returns PI4P related data from the recovery array
+    :param con_array: Recovery array
+    :param ss_pi4p: Steady state PI4P concentration
+    :return: Tuple consists of [0]PI4P recovery time and [1] min depletion
+    observed in PI4P levels
+    """
     ar = np.asarray(con_array[:, I_PI4P])
     req_conc = ss_pi4p * desired_recovery_percentage / 100
     try:
@@ -87,7 +125,15 @@ def get_pi4p_vars(con_array, ss_pi4p):
         return recovery_time[-1], min(con_array[:, I_PI4P])
 
 
-def do_scaling(filename: str):
+def do_scaling(filename: str) -> None:
+    """
+    Main Scaling function.
+
+    This will do all feedback scanning and save it through log file
+    :param filename: Name of file which has parameter set
+    """
+
+    # Log the analysis details
     log_data = {
         "UID": CURRENT_JOB,
         "system": system,
@@ -96,6 +142,9 @@ def do_scaling(filename: str):
         "depletion_percentage": depletion_percentage,
         "version": "3.0"}
     LOG.info(json.dumps(log_data, sort_keys=True))
+
+    # Open file and take parameter value. Keep only SINGLE parameter in
+    # input file with standard format (UID: {Key: value})
 
     with open(filename) as f:
         enzymes = get_parameter(f.read())
@@ -114,6 +163,17 @@ def do_scaling(filename: str):
             *[range_hill, range_carry, range_multi, range_feed_type,
               range_substrate, range_enz])))
 
+        # Without Feedback
+        ss_lipids = get_ss(init_conc, enzymes)
+
+        ss_pip2 = ss_lipids[I_PIP2]
+        ss_pi4p = ss_lipids[I_PI4P]
+        stim = give_stimulus(ss_lipids)
+        without_feed_re_time = get_recovery_time(stim, enzymes)
+        without_feed = get_desired_recovery_time(without_feed_re_time,
+                                                 ss_pip2)
+        without_feed_pi4p = get_pi4p_vars(without_feed_re_time, ss_pi4p)
+
         for hill, carry, multi, fed_type, sub_ind, enz in product(
                 *[range_hill, range_carry, range_multi, range_feed_type,
                   range_substrate, range_enz]):
@@ -129,17 +189,6 @@ def do_scaling(filename: str):
                 F_ENZYME: enz
             }
 
-            # Without Feedback
-            ss_lipids = get_ss(init_conc, enzymes)
-
-            ss_pip2 = ss_lipids[I_PIP2]
-            ss_pi4p = ss_lipids[I_PI4P]
-            stim = give_stimulus(ss_lipids)
-            without_feed_re_time = get_recovery_time(stim, enzymes)
-            without_feed = get_desired_recovery_time(without_feed_re_time,
-                                                     ss_pip2)
-            without_feed_pi4p = get_pi4p_vars(without_feed_re_time, ss_pi4p)
-
             # With Feedback
             ss_lipids_feed = get_ss(init_conc, enzymes, fed_para)
             ss_lipids_pip2 = ss_lipids_feed[I_PIP2]
@@ -152,7 +201,10 @@ def do_scaling(filename: str):
             with_feed_pi4p = get_pi4p_vars(with_feed_re_time, ss_lipids_pi4p)
 
             # Just sanity check. Ideally both values should be EXACTLY same
-            if ss_pip2 - ss_lipids_pip2 == ss_pi4p - ss_lipids_pi4p:
+            # However we will allow small numerical errors
+
+            if abs(ss_pip2 - ss_lipids_pip2) < 0.001 and \
+                    abs(ss_pi4p - ss_lipids_pi4p) < 0.001:
                 data = {
                     "Enzymes": {e: enzymes[e].properties for e in enzymes},
                     "fed_para": fed_para,
@@ -166,13 +218,23 @@ def do_scaling(filename: str):
                 OUTPUT.info(json.dumps(data, sort_keys=True))
 
 
-def get_lipid_from_index(ind: int):
+def get_lipid_from_index(ind: int) -> str:
+    """
+    Returns name of lipid based on standard index of lipid
+    Standard index values are presented in "constants" package
+    :param ind: standard index of lipid
+    :return: name of lipid
+    """
     r_s = [I_PMPI, I_PI4P, I_PIP2, I_DAG, I_PMPA, I_ERPA, I_CDPDAG, I_ERPI]
     r_n = [L_PMPI, L_PI4P, L_PIP2, L_DAG, L_PMPA, L_ERPA, L_CDPDAG, L_ERPI]
     return r_n[r_s.index(ind)]
 
 
 class VisualClass:
+    """
+    Simple class to handle the data input
+    """
+
     def __init__(self, data):
         self.data = json.loads(data)
         self.enzymes = self.data["Enzymes"]
@@ -197,7 +259,12 @@ class VisualClass:
             self.feedback_substrate_index)
 
 
-def get_data():
+def get_data() -> list:
+    """
+    Takes output file generated by "do_scaling" function and converts all
+    parameter values into VisualClass for further analysis
+    :return: list of VisualClass elements
+    """
     all_data = []
     with open("output/output.log") as f:
         for line in f:
@@ -206,7 +273,10 @@ def get_data():
     return all_data
 
 
-def general_core():
+def general_core() -> None:
+    """
+    Plots histogram for Positive and Negative feedback
+    """
     all_data = get_data()
 
     diff_positive = [x.diff for x in all_data if
@@ -223,7 +293,10 @@ def general_core():
     plt.show()
 
 
-def general_pi4p():
+def general_pi4p() -> None:
+    """
+    Plots histogram of PI4P depletion
+    """
     all_data = get_data()
     diff_positive = [x.pi4p_depletion for x in all_data if
                      x.type_of_feedback == FEEDBACK_POSITIVE]
@@ -239,7 +312,10 @@ def general_pi4p():
     plt.show()
 
 
-def pi4p_pip2_recovery():
+def pi4p_pip2_recovery() -> None:
+    """
+    Plots distribution of recovery time ratio of PI4P/PIP2
+    """
     all_data = get_data()
 
     diff_positive = [x.pi4p_pip2_recovery for x in all_data if
@@ -255,7 +331,10 @@ def pi4p_pip2_recovery():
     plt.show()
 
 
-def check_lipid_wise():
+def check_lipid_wise() -> None:
+    """
+    Plots lipid wise feedback distribution
+    """
     all_data = get_data()
     lipid_wise_pos = defaultdict(list)
     lipid_wise_neg = defaultdict(list)
@@ -283,7 +362,11 @@ def check_lipid_wise():
     plt.show()
 
 
-def check_enzyme_wise():
+def check_enzyme_wise() -> None:
+    """
+    Plots enzyme-wise feedback distribution
+    """
+
     all_data = get_data()
     enzyme_wise_pos = defaultdict(list)
     enzyme_wise_neg = defaultdict(list)
@@ -311,7 +394,11 @@ def check_enzyme_wise():
     plt.show()
 
 
-def single_enzyme(enzyme_name):
+def single_enzyme(enzyme_name) -> None:
+    """
+    Plots lipid wise feedback distribution for specific enzyme
+    :param enzyme_name: Name of Enzyme under investigation
+    """
     all_data = get_data()
     lipid_wise_pos = defaultdict(list)
     lipid_wise_neg = defaultdict(list)
@@ -341,7 +428,11 @@ def single_enzyme(enzyme_name):
     plt.show()
 
 
-def plot_recovery():
+def plot_recovery() -> None:
+    """
+    Plots recovery with parameter set which has PI4P and PIP2 recovery very
+    close
+    """
     all_data = get_data()
     min_re = 0
     val = None
@@ -366,6 +457,6 @@ def visualize():
     # general_core()
     # check_lipid_wise()
     # check_enzyme_wise()
-    # general_pi4p()
+    general_pi4p()
     # pi4p_pip2_recovery()
-    plot_recovery()
+    # plot_recovery()
