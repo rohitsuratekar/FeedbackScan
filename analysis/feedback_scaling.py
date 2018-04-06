@@ -32,13 +32,13 @@ depletion_percentage = 15
 desired_recovery_percentage = 90
 
 initial_time = np.linspace(0, ss_end_time, ss_end_time * 10)
-recovery_time = np.linspace(0, ss_recovery_time, ss_recovery_time * 10)
+recovery_time = np.linspace(0, ss_recovery_time, ss_recovery_time * 100)
 
 # feedback parameters
-range_hill = [0.5, 1, 2]
+range_hill = [0.5, 1, 1.5, 2]
 range_feed_type = [FEEDBACK_POSITIVE, FEEDBACK_NEGATIVE]
-range_carry = np.linspace(0.1, 10, 15)
-range_multi = np.linspace(1, 10, 15)
+range_carry = np.linspace(0.1, 10, 20)
+range_multi = np.linspace(1, 10, 20)
 range_substrate = [I_PMPI, I_PI4P, I_PIP2, I_DAG, I_PMPA, I_ERPA, I_CDPDAG,
                    I_ERPI]
 range_enz = [E_PITP, E_PI4K, E_PIP5K, E_PLC, E_DAGK, E_LAZA, E_PATP, E_CDS,
@@ -200,22 +200,19 @@ def do_scaling(filename: str) -> None:
                                                   ss_lipids_pip2)
             with_feed_pi4p = get_pi4p_vars(with_feed_re_time, ss_lipids_pi4p)
 
-            # Just sanity check. Ideally both values should be EXACTLY same
-            # However we will allow small numerical errors
-
-            if abs(ss_pip2 - ss_lipids_pip2) < 0.001 and \
-                    abs(ss_pi4p - ss_lipids_pi4p) < 0.001:
-                data = {
-                    "Enzymes": {e: enzymes[e].properties for e in enzymes},
-                    "fed_para": fed_para,
-                    "without_feed": without_feed,
-                    "with_feed": with_feed,
-                    "without_feed_pi4p": without_feed_pi4p[0],
-                    "depletion_pi4p_without": without_feed_pi4p[1],
-                    "depletion_pi4p_with": with_feed_pi4p[1],
-                    "with_feed_pi4p": with_feed_pi4p[0]
-                }
-                OUTPUT.info(json.dumps(data, sort_keys=True))
+            data = {
+                "Enzymes": {e: enzymes[e].properties for e in enzymes},
+                "fed_para": fed_para,
+                "without_feed": without_feed,
+                "with_feed": with_feed,
+                "without_feed_pi4p": without_feed_pi4p[0],
+                "depletion_pi4p_without": without_feed_pi4p[1],
+                "depletion_pi4p_with": with_feed_pi4p[1],
+                "with_feed_pi4p": with_feed_pi4p[0],
+                "ss_pip2_difference": abs(ss_pip2 - ss_lipids_pip2),
+                "ss_pi4p_difference": abs(ss_pi4p - ss_lipids_pi4p)
+            }
+            OUTPUT.info(json.dumps(data, sort_keys=True))
 
 
 def get_lipid_from_index(ind: int) -> str:
@@ -300,7 +297,6 @@ def sort_for_mutant() -> None:
     for a in get_data():
         itm = a  # type: VisualClass
         if itm.without_feed / itm.with_feed != 1:
-            print(itm.without_feed / itm.with_feed)
             sorted_data.append(a)
 
     with open("output/mutant_sorted.log", "w") as f:
@@ -326,8 +322,9 @@ def general_core() -> None:
     plt.hist(diff_positive, alpha=0.5, label="Positive Feedback")
     plt.hist(diff_negative, alpha=0.5, label="Negative Feedback")
     plt.axvline(1, linestyle="--", color="k")
+    plt.yscale("log")
     plt.xlabel("Without Feedback/With Feedback (PIP2 recovery)")
-    plt.ylabel("Frequency")
+    plt.ylabel("Frequency (Log Scale)")
     plt.legend(loc=0)
     plt.savefig("general.png", format='png', dpi=300, bbox_inches='tight')
     plt.show()
@@ -344,6 +341,7 @@ def general_pi4p() -> None:
                      x.type_of_feedback == FEEDBACK_NEGATIVE]
     plt.hist(diff_positive, alpha=0.5, label="Positive Feedback")
     plt.hist(diff_negative, alpha=0.5, label="Negative Feedback")
+    plt.yscale("log")
     plt.axvline(1, linestyle="--", color="k")
     plt.xlabel("Without Feedback/With Feedback (Min PI4P depletion)")
     plt.ylabel("Frequency")
@@ -364,8 +362,9 @@ def pi4p_pip2_recovery() -> None:
                      x.type_of_feedback == FEEDBACK_NEGATIVE]
     plt.hist(diff_positive, alpha=0.5, label="Positive Feedback")
     plt.hist(diff_negative, alpha=0.5, label="Negative Feedback")
+    plt.yscale("log")
     plt.xlabel("90% recovery (PI4P/PIP2)")
-    plt.ylabel("Frequency")
+    plt.ylabel("Frequency (Log Scale)")
     plt.legend(loc=0)
     plt.savefig("pi4p_pip2.png", format='png', dpi=300, bbox_inches='tight')
     plt.show()
@@ -386,6 +385,7 @@ def check_lipid_wise() -> None:
 
     gs = gridspec.GridSpec(2, 4)
     grid_count = 0
+
     for m in lipid_wise_pos:
         ax = plt.subplot(gs[grid_count])
         ax.hist(lipid_wise_pos[m], alpha=0.5, color=second_colors[
@@ -394,6 +394,7 @@ def check_lipid_wise() -> None:
             grid_count])
         ax.axvline(1, linestyle="--", color="k")
         # ax.set_xticks([])
+        ax.set_yscale("log")
         ax.set_yticks([])
         ax.set_title(m)
         grid_count += 1
@@ -426,6 +427,7 @@ def check_enzyme_wise() -> None:
             grid_count])
         ax.axvline(1, linestyle="--", color="k")
         # ax.set_xticks([])
+        ax.set_yscale("log")
         ax.set_yticks([])
         ax.set_title(m)
         grid_count += 1
@@ -477,8 +479,8 @@ def plot_recovery() -> None:
     min_re = 0
     val = None
     for p in all_data:
-        if p.pi4p_pip2_recovery > min_re:
-            min_re = p.pi4p_pip2_recovery
+        if p.pi4p_depletion > min_re:
+            min_re = p.pi4p_depletion
             val = p
 
     enzymes = convert_to_enzyme(val.enzymes)
@@ -486,10 +488,11 @@ def plot_recovery() -> None:
     ss_lipids = get_ss(init_conc, enzymes, val.feed_para)
     stim = give_stimulus(ss_lipids)
     with_feed_re_time = get_recovery_time(stim, enzymes, val.feed_para)
-    plt.plot(recovery_time, with_feed_re_time[:, I_PIP2])
-    plt.plot(recovery_time, with_feed_re_time[:, I_PI4P])
-    plt.plot(recovery_time, with_feed_re_time[:, I_DAG])
-    plt.xlim(0, 5)
+    plt.plot(recovery_time, with_feed_re_time[:, I_PI4P], label="PI4P")
+    plt.plot(recovery_time, with_feed_re_time[:, I_PIP2], label="PIP2")
+    plt.plot(recovery_time, with_feed_re_time[:, I_DAG], label="DAG")
+    plt.xlim(0, 100)
+    plt.legend(loc=0)
     plt.show()
 
 
@@ -497,6 +500,6 @@ def visualize():
     # general_core()
     # check_lipid_wise()
     # check_enzyme_wise()
-    general_pi4p()
+    # general_pi4p()
     # pi4p_pip2_recovery()
-    # plot_recovery()
+    plot_recovery()

@@ -11,7 +11,7 @@ def v():
 
 
 def d():
-    do_mutant_analysis("output/sample.log")
+    do_mutant_analysis("output/mutant_sorted.log")
 
 
 def st():
@@ -22,4 +22,4 @@ def mv():
     mutant_vis()
 
 
-st()
+mv()
