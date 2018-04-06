@@ -6,9 +6,16 @@ and then use parameter set from that file to do mutant analysis
 Use 'feedback_scaling.py" to do initial analysis
 """
 
+import matplotlib.gridspec as gridspec
+import matplotlib.pylab as plt
+
 from analysis.helper import *
 from utils.functions import update_progress
 from utils.log import *
+
+primary_colors = ["#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5",
+                  "#2196F3", "#03A9F4", "#00BCD4", "#009688", "#4CAF50",
+                  "#8BC34A", "#CDDC39"]
 
 # Initial setup
 system = S_OPEN_2
@@ -179,4 +186,28 @@ def mutant_vis():
         for line in f:
             all_data.append(VisualModel(line.strip().split(":", 1)[1]))
 
-    print(len(all_data))
+    wt_points = []
+    mt_points = []
+    for a in all_data:
+        wt_points.append(a.wt_recovery)
+        mt_points.append(a.mt_recovery)
+
+    wt_points = np.asanyarray(wt_points)
+    mt_points = np.asanyarray(mt_points)
+
+    nor_array = mt_points / wt_points
+
+    gs = gridspec.GridSpec(2, 3)
+    grid_count = 0
+    for m in recovery_points:
+        ax = plt.subplot(gs[grid_count])
+        ax.hist(nor_array[:, grid_count], alpha=0.5,
+                color=primary_colors[grid_count])
+        ax.axvline(1, linestyle="--", color="k")
+        # ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_yscale("log")
+        ax.set_title("%s %% recovery" % m)
+        grid_count += 1
+
+    plt.show()
