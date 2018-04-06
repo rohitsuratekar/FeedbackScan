@@ -273,6 +273,46 @@ def get_data() -> list:
     return all_data
 
 
+def sort_for_mutant() -> None:
+    """
+    Sorts parameter set for further mutant analysis
+    """
+
+    # Log the analysis details
+    log_data = {
+        "UID": CURRENT_JOB,
+        "system": system,
+        "Analysis": "Sort Mutants",
+        "desired_recovery": desired_recovery_percentage,
+        "depletion_percentage": depletion_percentage,
+        "version": "3.0"}
+    LOG.info(json.dumps(log_data, sort_keys=True))
+
+    mutant_log = logging.getLogger('mutant_log')
+    mutant_log.setLevel(logging.INFO)
+    mutant_log.addFilter(AppFilter())
+    mutant_file = logging.FileHandler(
+        OUTPUT_FOLDER + "/mutant_sorted.log")
+    mutant_file.setFormatter(logging.Formatter('%(uid)s: %(message)s'))
+    mutant_log.addHandler(mutant_file)
+
+    sorted_data = []
+    for a in get_data():
+        itm = a  # type: VisualClass
+        if itm.without_feed / itm.with_feed != 1:
+            print(itm.without_feed / itm.with_feed)
+            sorted_data.append(a)
+
+    with open("output/mutant_sorted.log", "w") as f:
+        for im in sorted_data:
+            a = im  # type: VisualClass
+            data = {
+                "Enzymes": a.enzymes,
+                "fed_para": a.feed_para
+            }
+            mutant_log.info(json.dumps(data, sort_keys=True))
+
+
 def general_core() -> None:
     """
     Plots histogram for Positive and Negative feedback
