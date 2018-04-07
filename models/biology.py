@@ -59,20 +59,21 @@ class Enzyme:
             else:
                 return self.k  # For source
         else:
-            h = feedback_para[F_HILL_COEFFICIENT]
-            a = feedback_para[F_MULTIPLICATION_FACTOR]
-            c = feedback_para[F_CARRYING_CAPACITY]
-            feedback_substrate = feedback_para[F_FEEDBACK_SUBSTRATE]
-            t = feedback_para[F_TYPE_OF_FEEDBACK]
-            e = feedback_para[F_ENZYME]
-
-            reg = 1 + pow((feedback_substrate / c), h)
-            fed = 1 + a * pow((feedback_substrate / c), h)
             fed_factor = 1
-            if t == FEEDBACK_POSITIVE and e == self.name:
-                fed_factor = fed / reg
-            elif t == FEEDBACK_NEGATIVE and e == self.name:
-                fed_factor = reg / fed
+            if self.name in feedback_para:
+                h = feedback_para[self.name][F_HILL_COEFFICIENT]
+                a = feedback_para[self.name][F_MULTIPLICATION_FACTOR]
+                c = feedback_para[self.name][F_CARRYING_CAPACITY]
+                feedback_substrate = feedback_para[self.name][
+                    F_FEEDBACK_SUBSTRATE]
+                t = feedback_para[self.name][F_TYPE_OF_FEEDBACK]
+
+                reg = 1 + pow((feedback_substrate / c), h)
+                fed = 1 + a * pow((feedback_substrate / c), h)
+                if t == FEEDBACK_POSITIVE:
+                    fed_factor = fed / reg
+                elif t == FEEDBACK_NEGATIVE:
+                    fed_factor = reg / fed
 
             if substrate is not None:
                 if self.kinetics == KINETIC_MASS_ACTION:

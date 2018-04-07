@@ -7,8 +7,9 @@ def get_equations(concentrations: list, time: tuple, *args) -> list:
     enzyme_list = args[0]  # type: dict
     feed_para = args[1]
     if feed_para is not None:
-        feed_para[F_FEEDBACK_SUBSTRATE] = concentrations[
-            feed_para[F_FEED_SUBSTRATE_INDEX]]
+        for key in feed_para:
+            feed_para[key][F_FEEDBACK_SUBSTRATE] = concentrations[
+                feed_para[key][F_FEED_SUBSTRATE_INDEX]]
 
     pitp = enzyme_list.get(E_PITP)  # type: Enzyme
     pip5k = enzyme_list.get(E_PIP5K)  # type: Enzyme
