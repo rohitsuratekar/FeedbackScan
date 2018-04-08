@@ -4,29 +4,10 @@ Generalized framework to analyse the multiple feedbacks
 
 from itertools import product, combinations
 
+from analysis.analysis_settings import *
 from analysis.helper import *
 from utils.functions import update_progress
 from utils.log import LOG, OUTPUT, CURRENT_JOB
-
-SYSTEM = S_OPEN_2
-PERCENTAGE_DEPLETION = 85
-
-# First recovery point is 16 which is immediately after 15% depletion
-# 76.5 is 90% of whatever is left after 15% depletion
-RECOVERY_POINTS = [20, 30, 50, 76.5, 90, 100]  # Get data at these points
-
-# Initialization and some base constants and their ranges
-RANGE_HILL_COEFFICIENT = [0.5, 1, 2]
-RANGE_MULTIPLICATION_FACTOR = np.linspace(1, 10, 10)
-RANGE_CARRY = np.linspace(0.1, 10, 10)
-RANGE_FEED_TYPE = [FEEDBACK_POSITIVE, FEEDBACK_NEGATIVE]
-RANGE_SUBSTRATE = [I_PMPI, I_PI4P, I_PIP2, I_DAG, I_PMPA, I_ERPA, I_CDPDAG,
-                   I_ERPI]
-RANGE_ENZYMES = [E_PITP, E_PI4K, E_PIP5K, E_PLC, E_DAGK, E_LAZA, E_PATP, E_CDS,
-                 E_PIS, E_SINK, E_SOURCE]
-
-# Timings
-recovery_time = np.linspace(0, 100, 2000)
 
 
 def get_parameter_set(filename: str):
@@ -85,7 +66,7 @@ def save_data(enzymes, feed_para, recovery_array, ss_lipids):
         try:
             i = recovery_time[[x > req_con for x in ar_pip2].index(True)]
             if i == 0.0:
-                pip2_timings.append(ar_pip2[1])
+                pip2_timings.append(recovery_time[1])
             else:
                 pip2_timings.append(i)
         except ValueError:
@@ -96,7 +77,7 @@ def save_data(enzymes, feed_para, recovery_array, ss_lipids):
         try:
             i = recovery_time[[x > req_con for x in ar_pi4p].index(True)]
             if i == 0.0:
-                pi4p_timings.append(ar_pi4p[1])
+                pi4p_timings.append(recovery_time[1])
             else:
                 pi4p_timings.append(i)
         except ValueError:
@@ -147,7 +128,7 @@ def multi_feedback(no_of_feedback: int, filename: str):
     # Start main iteration
     for c in enz_sub_comb:
         update_progress(progress_counter / len(enz_sub_comb))
-
+        progress_counter += 1
         # Initiate new dictionary for feedback parameters
         fed_para = {}
 
@@ -176,5 +157,3 @@ def multi_feedback(no_of_feedback: int, filename: str):
 
             f_fed_wt = get_recovery_points(enzymes, fed_para)
             save_data(enzymes, fed_para, f_fed_wt, nf_ss)
-
-        progress_counter += 1

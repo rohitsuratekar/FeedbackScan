@@ -1,176 +1,110 @@
-"""
-All visualization related functions
-"""
+import matplotlib.pyplot as plt
 
-import json
-from collections import defaultdict
-
-import matplotlib.gridspec as gridspec
-import matplotlib.pylab as plt
-
-from constants.namespace import *
-
-primary_colors = ["#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5",
-                  "#2196F3", "#03A9F4", "#00BCD4", "#009688", "#4CAF50",
-                  "#8BC34A", "#CDDC39"]
-
-second_colors = ["#FFCDD2", "#F8BBD0", "#E1BEE7", "#D1C4E9", "#C5CAE9",
-                 "#BBDEFB", "#B3E5FC", "#B2EBF2", "#B2DFDB", "#C8E6C9",
-                 "#DCEDC8", "#F0F4C3"]
+from analysis.analysis_settings import *
+from analysis.feedback_multiple import get_recovery_points
+from analysis.helper import *
 
 
-def get_lipid_from_index(ind: int):
-    r_s = [I_PMPI, I_PI4P, I_PIP2, I_DAG, I_PMPA, I_ERPA, I_CDPDAG, I_ERPI]
-    r_n = [L_PMPI, L_PI4P, L_PIP2, L_DAG, L_PMPA, L_ERPA, L_CDPDAG, L_ERPI]
-    return r_n[r_s.index(ind)]
+class VisualClass:
+    """
+    Simple class to hold raw data
+    """
+
+    def __init__(self, raw_data: str):
+        self.raw_data = raw_data
+        self.data = json.loads(raw_data.split(":", 1)[1])
+        self.enzyme_data = self.data["Enzymes"]
+        self.fed_para = self.data["fed_para"]
+        self.min_pi4p = self.data["min_pi4p"]
+        self.pi4p_timings = self.data["pi4p_timings"]
+        self.pip2_timings = self.data["pip2_timings"]
+        self.ss_dif_pi4p = self.data["ss_dif_pi4p"]
+        self.ss_dif_pip2 = self.data["ss_dif_pip2"]
+
+    @property
+    def enzymes(self):
+        return convert_to_enzyme(self.enzyme_data)
+
+    def get_pip2_ratio(self, nf_data: dict):
+        print(np.asanyarray(self.pip2_timings))
+        print(np.asanyarray(nf_data["pip2_timings"]))
+        print(np.asanyarray(self.pip2_timings) / np.asanyarray(
+            nf_data["pip2_timings"]))
+        return np.asanyarray(self.pip2_timings) / np.asanyarray(
+            nf_data["pip2_timings"])
 
 
-def plot_hist(nor, fed):
-    plt.axvline(nor[0], linestyle="--")
-    plt.hist(fed, alpha=0.7)
-
-
-def plot_lipid_wise(points, recovery_time_point, enzyme):
-    fed_recovery_positive = defaultdict(list)
-    fed_recovery_negative = defaultdict(list)
-    all_normal = []
-
-    ind = points[0].recovery_time_points.index(recovery_time_point)
-    for a in points:
-        all_normal.append(a.normal_recovery[ind])
-        if a.feedback_enzyme == enzyme:
-            if a.type_of_feedback == FEEDBACK_POSITIVE:
-                fed_recovery_positive[a.feedback_substrate_name].append(
-                    a.feedback_recovery[ind])
-            else:
-                fed_recovery_negative[a.feedback_substrate_name].append(
-                    a.feedback_recovery[ind])
-
-    print(set(all_normal))
-
-    gs = gridspec.GridSpec(3, 3)
-    grid_count = 0
-    for label in fed_recovery_positive:
-        ax = plt.subplot(gs[grid_count])
-        ax.hist(fed_recovery_negative[label], color=second_colors[
-            grid_count])
-        ax.hist(fed_recovery_positive[label], color=primary_colors[grid_count])
-        ax.axvline(points[0].normal_recovery[ind], linestyle="--", color="k")
-        # ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_title(label)
-        grid_count += 1
-
-
-def plot_all_points(points, feedback_type):
-    positive_points = defaultdict(list)
-    negative_points = defaultdict(list)
-
-    for a in points:
-        if a.type_of_feedback == FEEDBACK_POSITIVE:
-            for k in a.recovery_time_points:
-                positive_points[k].append(a.feedback_recovery[
-                                              a.recovery_time_points.index(k)])
-        else:
-            for k in a.recovery_time_points:
-                negative_points[k].append(a.feedback_recovery[
-                                              a.recovery_time_points.index(k)])
-
-    c = 0
-
-    if feedback_type == FEEDBACK_POSITIVE:
-        p = positive_points
-        title = "Positive Feedback"
-    else:
-        p = negative_points
-        title = "Negative Feedback"
-
-    for k in sorted(p, reverse=True):
-        plt.hist(p[k], 30, color=primary_colors[c], label=str(k * 100) \
-                                                          + "% "
-                                                            "recovery",
-                 alpha=0.8)
-        ind = points[0].recovery_time_points.index(k)
-        plt.axvline(points[0].normal_recovery[ind], linestyle="--", color="k")
-        c += 1
-
-    plt.title(title + "\n(shown only points between 0-100)")
-    plt.xlabel("Recovery Time")
-    plt.ylabel("Frequency")
-    plt.xlim(0, 100)
-    plt.legend(loc=0)
-    plt.show()
-
-
-def plot_enzyme_wise(points, recovery_time_point, enzyme):
-    fed_recovery_positive = defaultdict(list)
-    fed_recovery_negative = defaultdict(list)
-    ind = points[0].recovery_time_points.index(recovery_time_point)
-    all_normal = []
-    for a in points:
-        all_normal.append(a.normal_recovery[ind])
-        if a.type_of_feedback == FEEDBACK_POSITIVE:
-            fed_recovery_positive[a.feedback_enzyme].append(
-                a.feedback_recovery[ind])
-        else:
-            fed_recovery_negative[a.feedback_enzyme].append(
-                a.feedback_recovery[ind])
-
-    print(set(all_normal))
-    gs = gridspec.GridSpec(3, 4)
-    grid_count = 0
-    for label in fed_recovery_positive:
-        ax = plt.subplot(gs[grid_count])
-        ax.hist(fed_recovery_negative[label], color=second_colors[
-            grid_count])
-        ax.hist(fed_recovery_positive[label], color=primary_colors[grid_count])
-        ax.axvline(points[0].normal_recovery[ind], linestyle="--", color="k")
-        # ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_title(label)
-        grid_count += 1
-
-
-class SimpleOutput:
-    def __init__(self, data: dict):
-        self.data = data
-        self.recovery_time_points = data["Diff"]["val"]
-        self.normal_recovery = data["Diff"]["nor"]
-        self.feedback_recovery = data["Diff"]["feed"]
-        self.sum = data["Diff"]["sum"]
-        self.fed_para = data["fed_para"]
-        self.type_of_feedback = data["fed_para"][F_TYPE_OF_FEEDBACK]
-        self.hill_coefficient = data["fed_para"][F_HILL_COEFFICIENT]
-        self.carrying_capacity = data["fed_para"][F_CARRYING_CAPACITY]
-        self.multiplication_factor = data["fed_para"][F_MULTIPLICATION_FACTOR]
-        self.feedback_enzyme = data["fed_para"][F_ENZYME]
-        self.feedback_substrate_index = data["fed_para"][
-            F_FEED_SUBSTRATE_INDEX]
-        self.enzyme_data = data["Enzymes"]
-        self.feedback_substrate_name = get_lipid_from_index(
-            self.feedback_substrate_index)
-
-
-def plot_simple(filename: str):
-    all_data = []
+def get_para_sets(filename: str) -> list:
+    """
+    Extracts parameters from the file and converts into VisualClass
+    :param filename: Name of input file
+    :return: list of VisualClass elements
+    """
+    all_sets = []
     with open(filename) as f:
         for line in f:
-            all_data.append(
-                SimpleOutput(json.loads(line.split(":", 1)[1].strip())))
+            all_sets.append(VisualClass(line.strip()))
 
-    recovery_dic_normal = defaultdict(list)
-    recovery_dic_feedback = defaultdict(list)
+    return all_sets
 
-    for a in all_data:
-        for k in a.recovery_time_points:
-            recovery_dic_normal[k].append(a.normal_recovery[
-                                              a.recovery_time_points.index(k)])
-            recovery_dic_feedback[k].append(a.feedback_recovery[
-                                                a.recovery_time_points.index(
-                                                    k)])
 
-    fig = plt.figure()
-    fig.subplots_adjust(hspace=.5)
-    # plot_lipid_wise(all_data, 0.9, E_CDS)
-    plot_all_points(all_data, FEEDBACK_POSITIVE)
+def convert_into_data(recovery_array, ss_lipids) -> dict:
+    ar_pip2 = np.asarray(recovery_array[:, I_PIP2])
+    ar_pi4p = np.asarray(recovery_array[:, I_PI4P])
+
+    pip2_timings = []
+    pi4p_timings = []
+    pi4p_depletion = min(recovery_array[:, I_PI4P])
+
+    for point in RECOVERY_POINTS:
+        req_con = ss_lipids[I_PIP2] * point / 100
+        try:
+            i = recovery_time[[x > req_con for x in ar_pip2].index(True)]
+            if i == 0.0:
+                pip2_timings.append(ar_pip2[1])
+            else:
+                pip2_timings.append(i)
+        except ValueError:
+            pip2_timings.append(recovery_time[-1])
+
+    for point in RECOVERY_POINTS:
+        req_con = ss_lipids[I_PI4P] * point / 100
+        try:
+            i = recovery_time[[x > req_con for x in ar_pi4p].index(True)]
+            if i == 0.0:
+                pi4p_timings.append(ar_pi4p[1])
+            else:
+                pi4p_timings.append(i)
+        except ValueError:
+            pi4p_timings.append(recovery_time[-1])
+
+    return {
+        "pip2_timings": pip2_timings,
+        "pi4p_timings": pi4p_timings,
+        "min_pi4p": pi4p_depletion,
+        "ss_dif_pip2": recovery_array[-1][I_PIP2] / ss_lipids[I_PIP2],
+        "ss_dif_pi4p": recovery_array[-1][I_PI4P] / ss_lipids[I_PI4P]
+    }
+
+
+def general_analysis(filename: str):
+    all_para = get_para_sets(filename)
+    nf_recovery = get_recovery_points(all_para[0].enzymes, None)
+    nf_data = convert_into_data(nf_recovery, nf_recovery[-1])
+    pip2_ratio = []
+    for p in all_para:
+        para = p  # type:VisualClass
+        r = para.get_pip2_ratio(nf_data)
+        if all(x < 1000 for x in r):
+            pip2_ratio.append(r)
+
+        break
+
+    pip2_ratio = np.asanyarray(pip2_ratio)
+    plt.hist(pip2_ratio[:, 4], 100)
+    plt.yscale("log")
     plt.show()
+
+
+def visualize(filename: str):
+    general_analysis(filename)
