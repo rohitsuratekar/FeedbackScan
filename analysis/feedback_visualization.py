@@ -1,8 +1,19 @@
+from collections import defaultdict
+
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 
 from analysis.analysis_settings import *
 from analysis.feedback_multiple import get_recovery_points
 from analysis.helper import *
+
+primary_colors = ["#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5",
+                  "#2196F3", "#03A9F4", "#00BCD4", "#009688", "#4CAF50",
+                  "#8BC34A", "#CDDC39"]
+
+second_colors = ["#FFCDD2", "#F8BBD0", "#E1BEE7", "#D1C4E9", "#C5CAE9",
+                 "#BBDEFB", "#B3E5FC", "#B2EBF2", "#B2DFDB", "#C8E6C9",
+                 "#DCEDC8", "#F0F4C3"]
 
 
 class VisualClass:
@@ -15,6 +26,15 @@ class VisualClass:
         self.data = json.loads(raw_data.split(":", 1)[1])
         self.enzyme_data = self.data["Enzymes"]
         self.fed_para = self.data["fed_para"]
+        self.feed_enzymes = []
+        self.feed_substrates = []
+        self.feedback_type = []
+        for k in self.fed_para:
+            self.feed_enzymes.append(k)
+            self.feed_substrates.append(
+                self.fed_para[k][F_FEED_SUBSTRATE_INDEX])
+            self.feedback_type.append(self.fed_para[k][F_TYPE_OF_FEEDBACK])
+
         self.min_pi4p = self.data["min_pi4p"]
         self.pi4p_timings = self.data["pi4p_timings"]
         self.pip2_timings = self.data["pip2_timings"]
@@ -26,12 +46,8 @@ class VisualClass:
         return convert_to_enzyme(self.enzyme_data)
 
     def get_pip2_ratio(self, nf_data: dict):
-        print(np.asanyarray(self.pip2_timings))
-        print(np.asanyarray(nf_data["pip2_timings"]))
-        print(np.asanyarray(self.pip2_timings) / np.asanyarray(
-            nf_data["pip2_timings"]))
-        return np.asanyarray(self.pip2_timings) / np.asanyarray(
-            nf_data["pip2_timings"])
+        return np.asanyarray(
+            nf_data["pip2_timings"]) / np.asanyarray(self.pip2_timings)
 
 
 def get_para_sets(filename: str) -> list:
@@ -87,24 +103,73 @@ def convert_into_data(recovery_array, ss_lipids) -> dict:
     }
 
 
-def general_analysis(filename: str):
+def single_feedback(filename: str):
     all_para = get_para_sets(filename)
     nf_recovery = get_recovery_points(all_para[0].enzymes, None)
     nf_data = convert_into_data(nf_recovery, nf_recovery[-1])
-    pip2_ratio = []
+    pip2_ratio_positive = []
+    pip2_ratio_negative = []
     for p in all_para:
         para = p  # type:VisualClass
-        r = para.get_pip2_ratio(nf_data)
-        if all(x < 1000 for x in r):
-            pip2_ratio.append(r)
+        # r = para.get_pip2_ratio(nf_data)
+        r = para.ss_dif_pip2
+        if 0.9 < r < 1.1:
 
-        break
+            if para.feedback_type[0] == FEEDBACK_POSITIVE:
+                pip2_ratio_positive.append(para.get_pip2_ratio(nf_data))
+            else:
+                pip2_ratio_negative.append(para.get_pip2_ratio(nf_data))
 
-    pip2_ratio = np.asanyarray(pip2_ratio)
-    plt.hist(pip2_ratio[:, 4], 100)
+    pip2_ratio_positive = np.asanyarray(pip2_ratio_positive)
+    pip2_ratio_negative = np.asanyarray(pip2_ratio_negative)
+
+    plt.hist(pip2_ratio_positive[:, 4], alpha=0.5)
+    plt.hist(pip2_ratio_negative[:, 4], alpha=0.5)
+    plt.axvline(1, color="k", linestyle="--")
     plt.yscale("log")
     plt.show()
 
 
+def check_lipid_wise(filename: str) -> None:
+    """
+    Plots lipid wise feedback distribution
+    """
+    all_data = get_para_sets(filename)
+    nf_recovery = get_recovery_points(all_data[0].enzymes, None)
+    nf_data = convert_into_data(nf_recovery, nf_recovery[-1])
+    lipid_wise_pos = defaultdict(list)
+    lipid_wise_neg = defaultdict(list)
+    for para in all_data:
+        r = para.ss_dif_pip2
+        if 0.9 < r < 1.1:
+
+            if para.feedback_type[0] == FEEDBACK_POSITIVE:
+                lipid_wise_pos[para.feed_substrates[0]].append(
+                    para.get_pip2_ratio(nf_data)[3])
+            else:
+                lipid_wise_neg[para.feed_substrates[0]].append(
+                    para.get_pip2_ratio(nf_data)[3])
+
+    gs = gridspec.GridSpec(2, 4)
+    grid_count = 0
+
+    for m in lipid_wise_pos:
+        ax = plt.subplot(gs[grid_count])
+        ax.hist(lipid_wise_pos[m], alpha=0.5, color=second_colors[
+            grid_count])
+        ax.hist(lipid_wise_neg[m], alpha=0.5, color=primary_colors[
+            grid_count])
+        ax.axvline(1, linestyle="--", color="k")
+        # ax.set_xticks([])
+        ax.set_yscale("log")
+        ax.set_yticks([])
+        ax.set_title(m)
+        grid_count += 1
+
+    # plt.savefig("lipid_wise.png", format='png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+
 def visualize(filename: str):
-    general_analysis(filename)
+    # single_feedback(filename)
+    check_lipid_wise(filename)
