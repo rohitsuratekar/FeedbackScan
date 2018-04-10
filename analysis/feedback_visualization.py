@@ -16,6 +16,18 @@ second_colors = ["#FFCDD2", "#F8BBD0", "#E1BEE7", "#D1C4E9", "#C5CAE9",
                  "#DCEDC8", "#F0F4C3"]
 
 
+def get_lipid_from_index(ind: int) -> str:
+    """
+    Returns name of lipid based on standard index of lipid
+    Standard index values are presented in "constants" package
+    :param ind: standard index of lipid
+    :return: name of lipid
+    """
+    r_s = [I_PMPI, I_PI4P, I_PIP2, I_DAG, I_PMPA, I_ERPA, I_CDPDAG, I_ERPI]
+    r_n = [L_PMPI, L_PI4P, L_PIP2, L_DAG, L_PMPA, L_ERPA, L_CDPDAG, L_ERPI]
+    return r_n[r_s.index(ind)]
+
+
 class VisualClass:
     """
     Simple class to hold raw data
@@ -40,6 +52,8 @@ class VisualClass:
         self.pip2_timings = self.data["pip2_timings"]
         self.ss_dif_pi4p = self.data["ss_dif_pi4p"]
         self.ss_dif_pip2 = self.data["ss_dif_pip2"]
+        if self.ss_dif_pip2 < 0:
+            print(raw_data)
 
     @property
     def enzymes(self):
@@ -81,7 +95,7 @@ def convert_into_data(recovery_array, ss_lipids) -> dict:
             else:
                 pip2_timings.append(i)
         except ValueError:
-            pip2_timings.append(recovery_time[-1])
+            pip2_timings.append(-1989)  # Too Slow or numerical error
 
     for point in RECOVERY_POINTS:
         req_con = ss_lipids[I_PI4P] * point / 100
@@ -92,7 +106,7 @@ def convert_into_data(recovery_array, ss_lipids) -> dict:
             else:
                 pi4p_timings.append(i)
         except ValueError:
-            pi4p_timings.append(recovery_time[-1])
+            pi4p_timings.append(-1989)  # Too Slow or numerical error
 
     return {
         "pip2_timings": pip2_timings,
@@ -123,10 +137,25 @@ def single_feedback(filename: str):
     pip2_ratio_positive = np.asanyarray(pip2_ratio_positive)
     pip2_ratio_negative = np.asanyarray(pip2_ratio_negative)
 
-    plt.hist(pip2_ratio_positive[:, 4], alpha=0.5)
-    plt.hist(pip2_ratio_negative[:, 4], alpha=0.5)
+    plt.hist(pip2_ratio_positive[:, 3], alpha=0.5)
+    plt.hist(pip2_ratio_negative[:, 3], alpha=0.5)
     plt.axvline(1, color="k", linestyle="--")
     plt.yscale("log")
+    plt.show()
+
+
+def sanity_check_ss_diff(filename: str) -> None:
+    """
+    Plots lipid wise feedback distribution
+    """
+    all_data = get_para_sets(filename)
+    checked_para = []
+    for para in all_data:
+        checked_para.append(para.ss_dif_pip2)
+
+    checked_para = [x for x in checked_para if str(x) != 'nan']
+    plt.hist(checked_para, 100)
+    # plt.savefig("lipid_wise.png", format='png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
@@ -140,15 +169,12 @@ def check_lipid_wise(filename: str) -> None:
     lipid_wise_pos = defaultdict(list)
     lipid_wise_neg = defaultdict(list)
     for para in all_data:
-        r = para.ss_dif_pip2
-        if 0.9 < r < 1.1:
-
-            if para.feedback_type[0] == FEEDBACK_POSITIVE:
-                lipid_wise_pos[para.feed_substrates[0]].append(
-                    para.get_pip2_ratio(nf_data)[3])
-            else:
-                lipid_wise_neg[para.feed_substrates[0]].append(
-                    para.get_pip2_ratio(nf_data)[3])
+        if para.feedback_type[0] == FEEDBACK_POSITIVE:
+            lipid_wise_pos[para.feed_substrates[0]].append(
+                para.get_pip2_ratio(nf_data)[3])
+        else:
+            lipid_wise_neg[para.feed_substrates[0]].append(
+                para.get_pip2_ratio(nf_data)[3])
 
     gs = gridspec.GridSpec(2, 4)
     grid_count = 0
@@ -163,13 +189,54 @@ def check_lipid_wise(filename: str) -> None:
         # ax.set_xticks([])
         ax.set_yscale("log")
         ax.set_yticks([])
-        ax.set_title(m)
+        ax.set_title(get_lipid_from_index(m))
         grid_count += 1
 
     # plt.savefig("lipid_wise.png", format='png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
+def check_enzyme_wise(filename: str) -> None:
+    """
+    Plots lipid wise feedback distribution
+    """
+    all_data = get_para_sets(filename)
+    nf_recovery = get_recovery_points(all_data[0].enzymes, None)
+    nf_data = convert_into_data(nf_recovery, nf_recovery[-1])
+    enzyme_wise_pos = defaultdict(list)
+    enzyme_wise_neg = defaultdict(list)
+    for para in all_data:
+
+        if para.feedback_type[0] == FEEDBACK_POSITIVE:
+            enzyme_wise_pos[para.feed_enzymes[0]].append(
+                para.get_pip2_ratio(nf_data)[3])
+        else:
+            enzyme_wise_neg[para.feed_enzymes[0]].append(
+                para.get_pip2_ratio(nf_data)[3])
+
+    gs = gridspec.GridSpec(3, 4)
+    grid_count = 0
+
+    for m in enzyme_wise_pos:
+        ax = plt.subplot(gs[grid_count])
+        ax.hist(enzyme_wise_pos[m], alpha=0.5, color=second_colors[
+            grid_count])
+        ax.hist(enzyme_wise_pos[m], alpha=0.5, color=primary_colors[
+            grid_count])
+        ax.axvline(1, linestyle="--", color="k")
+        # ax.set_xticks([])
+        ax.set_yscale("log")
+        ax.set_yticks([])
+        ax.set_title(m)
+        grid_count += 1
+
+    # plt.savefig("enzyme_wise.png", format='png', dpi=300,
+    # bbox_inches='tight')
+    plt.show()
+
+
 def visualize(filename: str):
+    sanity_check_ss_diff(filename)
     # single_feedback(filename)
-    check_lipid_wise(filename)
+    # check_lipid_wise(filename)
+    # check_enzyme_wise(filename)

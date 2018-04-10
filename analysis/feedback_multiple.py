@@ -44,7 +44,7 @@ def get_recovery_points(enzymes, feed_factors):
 
     # Stimulation
     sim_ss = [x for x in pre_sim_ss]
-    amount = pre_sim_ss[I_PIP2] * PERCENTAGE_DEPLETION / 100
+    amount = sim_ss[I_PIP2] * (100 - PERCENTAGE_DEPLETION) / 100
     sim_ss[I_DAG] = sim_ss[I_DAG] + sim_ss[I_PIP2] - amount
     sim_ss[I_PIP2] = amount
 
@@ -70,7 +70,7 @@ def save_data(enzymes, feed_para, recovery_array, ss_lipids):
             else:
                 pip2_timings.append(i)
         except ValueError:
-            pip2_timings.append(recovery_time[-1])
+            pip2_timings.append(-1989)
 
     for point in RECOVERY_POINTS:
         req_con = ss_lipids[I_PI4P] * point / 100
@@ -81,7 +81,10 @@ def save_data(enzymes, feed_para, recovery_array, ss_lipids):
             else:
                 pi4p_timings.append(i)
         except ValueError:
-            pi4p_timings.append(recovery_time[-1])
+            pi4p_timings.append(-1989)
+
+    pip2_diff = recovery_array[-1][I_PIP2] / ss_lipids[I_PIP2]
+    pi4p_diff = recovery_array[-1][I_PI4P] / ss_lipids[I_PI4P]
 
     data = {
         "Enzymes": {e: enzymes[e].properties for e in enzymes},
@@ -89,8 +92,8 @@ def save_data(enzymes, feed_para, recovery_array, ss_lipids):
         "pip2_timings": pip2_timings,
         "pi4p_timings": pi4p_timings,
         "min_pi4p": pi4p_depletion,
-        "ss_dif_pip2": recovery_array[-1][I_PIP2] / ss_lipids[I_PIP2],
-        "ss_dif_pi4p": recovery_array[-1][I_PI4P] / ss_lipids[I_PI4P]
+        "ss_dif_pip2": pip2_diff,
+        "ss_dif_pi4p": pi4p_diff
     }
     OUTPUT.info(json.dumps(data, sort_keys=True))
 
