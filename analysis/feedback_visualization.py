@@ -52,8 +52,6 @@ class VisualClass:
         self.pip2_timings = self.data["pip2_timings"]
         self.ss_dif_pi4p = self.data["ss_dif_pi4p"]
         self.ss_dif_pip2 = self.data["ss_dif_pip2"]
-        if self.ss_dif_pip2 < 0:
-            print(raw_data)
 
     @property
     def enzymes(self):
@@ -137,10 +135,14 @@ def single_feedback(filename: str):
     pip2_ratio_positive = np.asanyarray(pip2_ratio_positive)
     pip2_ratio_negative = np.asanyarray(pip2_ratio_negative)
 
-    plt.hist(pip2_ratio_positive[:, 3], alpha=0.5)
-    plt.hist(pip2_ratio_negative[:, 3], alpha=0.5)
+    plt.hist(pip2_ratio_positive[:, 3], alpha=0.5, label="Positive Feedback")
+    plt.hist(pip2_ratio_negative[:, 3], alpha=0.5, label="Negative Feedback")
     plt.axvline(1, color="k", linestyle="--")
+    plt.legend(loc=0)
     plt.yscale("log")
+    plt.xlabel("Without Feedback/With Feedback (90% PIP$_2$ recovery)")
+    plt.ylabel("Frequency (Log Scale)")
+    plt.savefig("general.png", format='png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
@@ -153,9 +155,51 @@ def sanity_check_ss_diff(filename: str) -> None:
     for para in all_data:
         checked_para.append(para.ss_dif_pip2)
 
-    checked_para = [x for x in checked_para if str(x) != 'nan']
-    plt.hist(checked_para, 100)
-    # plt.savefig("lipid_wise.png", format='png', dpi=300, bbox_inches='tight')
+    fig, ax = plt.subplots()
+    ax.hist(checked_para)
+    ax.set_yscale("log")
+    ax.set_xscale("log")
+    ax.axvspan(0.9, 1.1, alpha=0.5, color='g')
+    plt.show()
+
+
+def check_pi4p_depletion(filename: str) -> None:
+    all_data = get_para_sets(filename)
+    nf = get_recovery_points(all_data[0].enzymes, None)[-1][I_PI4P]
+    checked_para = []
+    for para in all_data:
+        r = para.ss_dif_pip2
+        if 0.9 < r < 1.1:
+            checked_para.append(para.min_pi4p / nf)
+            if para.min_pi4p / nf > 100:
+                print(para.fed_para)
+
+    fig, ax = plt.subplots()
+    ax.hist(checked_para)
+    ax.set_yscale("log")
+    plt.show()
+
+
+def check_pi4p_pip2(filename: str) -> None:
+    all_data = get_para_sets(filename)
+    checked_para = []
+    for para in all_data:
+        r = para.ss_dif_pip2
+        if 0.9 < r < 1.1:
+            re = np.asanyarray(para.pi4p_timings)[3] / \
+                 np.asanyarray(para.pip2_timings)[3]
+            if re > 0:
+                checked_para.append(np.asanyarray(para.pi4p_timings) /
+                                    np.asanyarray(para.pip2_timings))
+
+            if re > 1:
+                print(para.fed_para)
+
+    fig, ax = plt.subplots()
+    ax.hist(np.asanyarray(checked_para)[:, 3])
+    ax.set_yscale("log")
+    ax.set_ylabel("Frequency (Log Scale)")
+    ax.set_xlabel("PI4P recovery/PIP$_2$ recovery")
     plt.show()
 
 
@@ -169,14 +213,16 @@ def check_lipid_wise(filename: str) -> None:
     lipid_wise_pos = defaultdict(list)
     lipid_wise_neg = defaultdict(list)
     for para in all_data:
-        if para.feedback_type[0] == FEEDBACK_POSITIVE:
-            lipid_wise_pos[para.feed_substrates[0]].append(
-                para.get_pip2_ratio(nf_data)[3])
-        else:
-            lipid_wise_neg[para.feed_substrates[0]].append(
-                para.get_pip2_ratio(nf_data)[3])
+        r = para.ss_dif_pip2
+        if 0.9 < r < 1.1:
+            if para.feedback_type[0] == FEEDBACK_POSITIVE:
+                lipid_wise_pos[para.feed_substrates[0]].append(
+                    para.get_pip2_ratio(nf_data)[3])
+            else:
+                lipid_wise_neg[para.feed_substrates[0]].append(
+                    para.get_pip2_ratio(nf_data)[3])
 
-    gs = gridspec.GridSpec(2, 4)
+    gs = gridspec.GridSpec(3, 3)
     grid_count = 0
 
     for m in lipid_wise_pos:
@@ -206,22 +252,23 @@ def check_enzyme_wise(filename: str) -> None:
     enzyme_wise_pos = defaultdict(list)
     enzyme_wise_neg = defaultdict(list)
     for para in all_data:
+        r = para.ss_dif_pip2
+        if 0.9 < r < 1.1:
+            if para.feedback_type[0] == FEEDBACK_POSITIVE:
+                enzyme_wise_pos[para.feed_enzymes[0]].append(
+                    para.get_pip2_ratio(nf_data)[3])
+            else:
+                enzyme_wise_neg[para.feed_enzymes[0]].append(
+                    para.get_pip2_ratio(nf_data)[3])
 
-        if para.feedback_type[0] == FEEDBACK_POSITIVE:
-            enzyme_wise_pos[para.feed_enzymes[0]].append(
-                para.get_pip2_ratio(nf_data)[3])
-        else:
-            enzyme_wise_neg[para.feed_enzymes[0]].append(
-                para.get_pip2_ratio(nf_data)[3])
-
-    gs = gridspec.GridSpec(3, 4)
+    gs = gridspec.GridSpec(4, 3)
     grid_count = 0
 
     for m in enzyme_wise_pos:
         ax = plt.subplot(gs[grid_count])
         ax.hist(enzyme_wise_pos[m], alpha=0.5, color=second_colors[
             grid_count])
-        ax.hist(enzyme_wise_pos[m], alpha=0.5, color=primary_colors[
+        ax.hist(enzyme_wise_neg[m], alpha=0.5, color=primary_colors[
             grid_count])
         ax.axvline(1, linestyle="--", color="k")
         # ax.set_xticks([])
@@ -229,14 +276,15 @@ def check_enzyme_wise(filename: str) -> None:
         ax.set_yticks([])
         ax.set_title(m)
         grid_count += 1
-
     # plt.savefig("enzyme_wise.png", format='png', dpi=300,
     # bbox_inches='tight')
     plt.show()
 
 
 def visualize(filename: str):
-    sanity_check_ss_diff(filename)
+    # sanity_check_ss_diff(filename)
     # single_feedback(filename)
     # check_lipid_wise(filename)
     # check_enzyme_wise(filename)
+    check_pi4p_depletion(filename)
+    # check_pi4p_pip2(filename)

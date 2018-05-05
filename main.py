@@ -8,11 +8,11 @@ def s():
 
 
 def v():
-    visualize("output/output.log")
+    visualize("output/single_output.log")
 
 
 def c():
     check("test.txt")
 
 
-s()
+c()
