@@ -102,3 +102,31 @@ def convert_to_enzyme(data) -> dict:
     return {x.name: x for x in
             [pitp, pi4k, pip5k, plc, dagk, laza, patp, cds, pis, sink, source,
              p4tase, p5tase, ip3tase]}
+
+
+def get_lipid_from_index(ind: int) -> str:
+    """
+    Returns name of lipid based on standard index of lipid
+    Standard index values are presented in "constants" package
+    :param ind: standard index of lipid
+    :return: name of lipid
+    """
+    r_s = [I_PMPI, I_PI4P, I_PIP2, I_DAG, I_PMPA, I_ERPA, I_CDPDAG, I_ERPI]
+    r_n = [L_PMPI, L_PI4P, L_PIP2, L_DAG, L_PMPA, L_ERPA, L_CDPDAG, L_ERPI]
+    return r_n[r_s.index(ind)]
+
+
+def give_stimulus(ini_cond, depletion_percentage):
+    """
+    Note: This is approximate method and do not consider changes in any
+    other lipid except PIP2 and DAG. Use this method only in initial
+    analysis as this will cut down HUGE computational power
+    :param depletion_percentage: Percentage depletion in PIP2
+    :param ini_cond: Initial conditions
+    :return: Lipid concentrations after stimulation
+    """
+    sim_ss = [x for x in ini_cond]
+    amount = sim_ss[I_PIP2] * (100 - depletion_percentage) / 100
+    sim_ss[I_DAG] = sim_ss[I_DAG] + sim_ss[I_PIP2] - amount
+    sim_ss[I_PIP2] = amount
+    return sim_ss

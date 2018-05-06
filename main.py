@@ -1,18 +1,17 @@
-from analysis.feedback_multiple import multi_feedback
-from analysis.feedback_visualization import visualize
-from analysis.test_feedback import check
+from analysis.feedback_scaling import scan_single_feedback
+from constants.namespace import S_OPEN_2
+from test import plot
+
+CURRENT_FILE = "best_para.txt"
 
 
-def s():
-    multi_feedback(1, "test.txt")
+def scan_single():
+    scan_single_feedback(CURRENT_FILE, S_OPEN_2)
 
 
-def v():
-    visualize("output/single_output.log")
+def test():
+    plot(CURRENT_FILE, S_OPEN_2)
 
 
-def c():
-    check("test.txt")
-
-
-c()
+if __name__ == "__main__":
+    scan_single()

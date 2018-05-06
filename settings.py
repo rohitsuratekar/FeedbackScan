@@ -10,6 +10,3 @@ NAME_OF_OUTPUT_FILE = "output.log"  # Name of output file
 # True if you want to store script log in external file. (Recommended : True)
 STORE_SCRIPT_LOG = True
 PRINT_TO_CONSOLE = True  # True if script log should be shown on console
-
-# Mutant analysis values
-NAME_OF_MUTANT_FILE = "mutant_para.txt"
