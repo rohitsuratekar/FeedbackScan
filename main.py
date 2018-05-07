@@ -1,4 +1,5 @@
 from analysis.feedback_scaling import scan_single_feedback
+from analysis.feedback_visualize import visualize
 from constants.namespace import S_OPEN_2
 from test import plot
 
@@ -13,5 +14,9 @@ def test():
     plot(CURRENT_FILE, S_OPEN_2)
 
 
+def vis():
+    visualize("output/output.log", S_OPEN_2)
+
+
 if __name__ == "__main__":
-    scan_single()
+    vis()

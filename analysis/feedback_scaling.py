@@ -3,8 +3,8 @@ All feedback related scaling functions can go in this file
 Related visualization will also go in the same file
 
 
-IMPORTANT: We did not give any feedback to source in any combination because it
-was changing steady state values
+IMPORTANT: We removed all feedback parameter which were not giving steady
+state close to the steady state without feedback
 """
 
 from itertools import product
