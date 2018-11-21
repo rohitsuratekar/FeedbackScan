@@ -10,7 +10,7 @@ from analysis.analysis_settings import *
 from analysis.feedback_scaling import recovery_time
 from analysis.helper import *
 
-DIFF_INDEX = 3
+DIFF_INDEX = 4
 
 
 class VisualizeSingle:
@@ -21,6 +21,7 @@ class VisualizeSingle:
         self.enzymes = split_data["Enzymes"]
         self.feed_para = split_data["fed_para"]
         self.min_pi4p = split_data["min_pi4p"]
+        self.normalized_pi4p_depletion = self.min_pi4p / wf_para[I_PI4P]
         self.pi4p_timings = split_data["pi4p_timings"]
         self.pip2_timings = split_data["pip2_timings"]
         self.ss_dif_pi4p = split_data["ss_dif_pi4p"]
@@ -90,14 +91,40 @@ def general_core(output_file: str, system: str) -> None:
                      x.type_of_feedback == FEEDBACK_POSITIVE]
     diff_negative = [x.diff[DIFF_INDEX] for x in all_data if
                      x.type_of_feedback == FEEDBACK_NEGATIVE]
-    plt.hist(diff_positive, alpha=0.5, label="Positive interaction")
-    plt.hist(diff_negative, alpha=0.5, label="Negative interaction")
+    plt.hist(diff_positive, 10, alpha=0.5, label="Positive interaction",
+             color="b")
+    plt.hist(diff_negative, 10, alpha=0.5, label="Negative interaction",
+             color="r")
     plt.axvline(1, linestyle="--", color="k")
     plt.yscale("log")
     plt.xlabel("90% PIP$_2$ recovery (Without Feedback/With Feedback)")
     plt.ylabel("Frequency (Log Scale)")
     plt.legend(loc=0)
     plt.savefig("general.png", format='png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+
+def depletion_plot(output_file: str, system: str) -> None:
+    """
+    Plots histogram for Positive and Negative feedback
+    """
+    all_data = get_parameters(output_file, system)
+
+    diff_positive = [x.normalized_pi4p_depletion for x in all_data if
+                     x.type_of_feedback == FEEDBACK_POSITIVE]
+    diff_negative = [x.normalized_pi4p_depletion for x in all_data if
+                     x.type_of_feedback == FEEDBACK_NEGATIVE]
+    plt.hist(diff_positive, 10, alpha=0.5, label="Positive interaction",
+             color="b")
+    plt.hist(diff_negative, 10, alpha=0.5, label="Negative interaction",
+             color="r")
+    plt.axvline(0.85, linestyle="--", color="k")
+    plt.yscale("log")
+    plt.xlabel("Depletion of PI4P with respect to its steady state")
+    plt.ylabel("Frequency (Log Scale)")
+    plt.legend(loc=0)
+    plt.savefig("pi4p_depletion.png", format='png', dpi=300,
+                bbox_inches='tight')
     plt.show()
 
 
@@ -112,15 +139,53 @@ def pi4p_pip2_timing(output_file, system) -> None:
     diff_negative = [x.pi4p_timings[DIFF_INDEX] / x.pip2_timings[DIFF_INDEX]
                      for x in all_data if
                      x.type_of_feedback == FEEDBACK_NEGATIVE]
-    plt.hist(diff_positive, alpha=0.5, label="Positive Feedback")
-    plt.hist(diff_negative, alpha=0.5, label="Negative Feedback")
+    plt.hist(diff_positive, 10, alpha=0.5, label="Positive Feedback",
+             color="b")
+    plt.hist(diff_negative, 10, alpha=0.5, label="Negative Feedback",
+             color="r")
     plt.yscale("log")
     plt.axvline(1, linestyle="--", color="k")
-    plt.xlabel("90% recovery (PI4P/PIP$_2$)")
+    plt.xlabel("time to 90% recovery (PI4P/PIP$_2$)")
     plt.ylabel("Frequency")
     plt.legend(loc=0)
     plt.savefig("pi4p_pip2_timing.png", format='png', dpi=300,
                 bbox_inches='tight')
+    plt.show()
+
+
+def pi4p_to_pip2_all_depletion(output_file, system) -> None:
+    """
+    Plots lipid wise feedback distribution
+    """
+    all_data = get_parameters(output_file, system)
+    lipid_wise_pos = defaultdict(list)
+    lipid_wise_neg = defaultdict(list)
+    for p in all_data:
+        for m in RECOVERY_POINTS:
+            b = p.pi4p_timings[RECOVERY_POINTS.index(m)] / p.pip2_timings[
+                RECOVERY_POINTS.index(m)]
+            if b > 0:
+                if p.type_of_feedback == FEEDBACK_POSITIVE:
+                    lipid_wise_pos[str(m)].append(b)
+                else:
+                    lipid_wise_neg[str(m)].append(b)
+
+    gs = gridspec.GridSpec(3, 2)
+    grid_count = 0
+
+    for m in lipid_wise_pos:
+        ax = plt.subplot(gs[grid_count])
+        ax.hist(lipid_wise_pos[m], 10, alpha=0.5, color="b")
+        ax.hist(lipid_wise_neg[m], 10, alpha=0.5, color="r")
+        ax.axvline(1, linestyle="--", color="k")
+        # ax.set_xticks([])
+        ax.set_yscale("log")
+        ax.set_yticks([])
+        ax.set_title("%s %% of Steady State" % m)
+        # ax.set_xlim(0, 2)
+        grid_count += 1
+
+    plt.savefig("lipid_wise.png", format='png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
@@ -144,16 +209,14 @@ def check_lipid_wise(output_file, system) -> None:
 
     for m in lipid_wise_pos:
         ax = plt.subplot(gs[grid_count])
-        ax.hist(lipid_wise_pos[m], alpha=0.5, color=COLORS_SECONDARY[
-            grid_count])
-        ax.hist(lipid_wise_neg[m], alpha=0.5, color=COLORS_PRIMARY[
-            grid_count])
+        ax.hist(lipid_wise_pos[m], 10, alpha=0.5, color="b")
+        ax.hist(lipid_wise_neg[m], 10, alpha=0.5, color="r")
         ax.axvline(1, linestyle="--", color="k")
         # ax.set_xticks([])
         ax.set_yscale("log")
         ax.set_yticks([])
         ax.set_title(m)
-        ax.set_xlim(0, 2)
+        # ax.set_xlim(0, 2)
         grid_count += 1
 
     plt.savefig("lipid_wise.png", format='png', dpi=300, bbox_inches='tight')
@@ -178,10 +241,8 @@ def check_enzyme_wise(output_file, system) -> None:
     grid_count = 0
     for m in enzyme_wise_pos:
         ax = plt.subplot(gs[grid_count])
-        ax.hist(enzyme_wise_pos[m], alpha=0.5, color=COLORS_SECONDARY[
-            grid_count])
-        ax.hist(enzyme_wise_neg[m], alpha=0.5, color=COLORS_PRIMARY[
-            grid_count])
+        ax.hist(enzyme_wise_pos[m], 10, alpha=0.5, color="b")
+        ax.hist(enzyme_wise_neg[m], 10, alpha=0.5, color="r")
         ax.axvline(1, linestyle="--", color="k")
         # ax.set_xticks([])
         ax.set_yscale("log")
@@ -196,5 +257,7 @@ def check_enzyme_wise(output_file, system) -> None:
 def visualize(output_file: str, system: str):
     # general_core(output_file, system)
     # pi4p_pip2_timing(output_file, system)
-    check_lipid_wise(output_file, system)
-    # check_enzyme_wise(output_file, system)
+    # pi4p_to_pip2_all_depletion(output_file, system)
+    # depletion_plot(output_file, system)
+    # check_lipid_wise(output_file, system)
+    check_enzyme_wise(output_file, system)

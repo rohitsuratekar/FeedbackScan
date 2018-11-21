@@ -91,3 +91,16 @@ def plot_without_feedback(filename: str, system: str):
 
 def plot(filename: str, system: str):
     plot_without_feedback(filename, system)
+
+
+def check_patp(filename: str, system: str):
+    enzymes = get_scaled_enzymes(filename, system)
+    init_con = get_random_concentrations(1, system)
+
+    for i in np.linspace(0.1, 10, 10):
+        enzymes[E_PATP].v *= i
+        initial_time = np.linspace(0, 2000, 30000)
+        ss = odeint(get_equations(system), init_con, initial_time,
+                    args=(enzymes, None))[-1]
+        print(ss[I_PMPA], ss[I_PMPA] + ss[I_ERPA])
+        enzymes[E_PATP].v /= i
